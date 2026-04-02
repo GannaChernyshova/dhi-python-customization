@@ -1,0 +1,67 @@
+name: DHI Customization Edit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - customization.yaml
+  workflow_dispatch:
+    inputs:
+      busybox_version:
+        description: "BusyBox artifact tag — updates dhi-busybox-ann version (e.g. 1.38.0-alpine3.23)"
+        required: false
+        default: ""
+      zscaler_cert_tag:
+        description: "Zscaler cert artifact tag — updates zscaler-cert version (e.g. v2)"
+        required: false
+        default: ""
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  update-customization:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update versions in customization.yaml
+        run: |
+          if [ -n "${{ inputs.busybox_version }}" ]; then
+            yq -i '(.contents.artifacts[] | select(.name | test("dhi-busybox-ann"))).name = "demonstrationorg/dhi-busybox-ann:${{ inputs.busybox_version }}"' customization.yaml
+            sed -i 's/# busybox_version: .*/# busybox_version: ${{ inputs.busybox_version }}/' customization.yaml
+            echo "Updated BusyBox version to ${{ inputs.busybox_version }}"
+          fi
+
+          if [ -n "${{ inputs.zscaler_cert_tag }}" ]; then
+            yq -i '(.contents.artifacts[] | select(.name | test("zscaler-cert"))).name = "demonstrationorg/zscaler-cert:${{ inputs.zscaler_cert_tag }}"' customization.yaml
+            sed -i 's/# zscaler_cert_tag: .*/# zscaler_cert_tag: ${{ inputs.zscaler_cert_tag }}/' customization.yaml
+            echo "Updated Zscaler cert tag to ${{ inputs.zscaler_cert_tag }}"
+          fi
+
+      - name: Show effective customization.yaml
+        run: cat customization.yaml
+
+      - name: Install dhictl
+        run: |
+          curl -fsSL https://github.com/docker-hardened-images/dhictl/releases/download/v0.0.2/dhictl-linux-amd64 -o /usr/local/bin/dhictl
+          chmod +x /usr/local/bin/dhictl
+
+      - name: Authenticate with Docker Hub
+        uses: docker/login-action@v3.4.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Update DHI customization
+        run: |
+          dhictl customization edit customization.yaml --org demonstrationorg
+        env:
+          DOCKER_PAT: ${{ secrets.DOCKERHUB_TOKEN }}

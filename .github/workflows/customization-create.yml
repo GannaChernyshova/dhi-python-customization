@@ -1,0 +1,63 @@
+name: DHI Customization Recreate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  recreate-customization:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Install dhictl
+        run: |
+          curl -fsSL https://github.com/docker-hardened-images/dhictl/releases/download/v0.0.2/dhictl-linux-amd64 -o /usr/local/bin/dhictl
+          chmod +x /usr/local/bin/dhictl
+
+      - name: Authenticate with Docker Hub
+        uses: docker/login-action@v3.4.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Delete existing customization
+        run: |
+          dhictl customization delete demonstrationorg/dhi-python-ann zscaler --org demonstrationorg --yes|| echo "No existing customization to delete, continuing..."
+        env:
+          DOCKER_PAT: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create customization
+        run: |
+          dhictl customization create customization.yaml --org demonstrationorg
+        env:
+          DOCKER_PAT: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Update customization ID in yaml
+        run: |
+          ID=$(dhictl customization list --org demonstrationorg | grep zscaler | awk '{print $1}')
+          echo "Customization ID: $ID"
+          if [ -z "$ID" ]; then
+            echo "Error: could not retrieve customization ID"
+            exit 1
+          fi
+          if grep -q "^id:" customization.yaml; then
+            sed -i "s/^id:.*/id: $ID/" customization.yaml
+          else
+            sed -i "/^name:/a id: $ID" customization.yaml
+          fi
+        env:
+          DOCKER_PAT: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Commit updated customization.yaml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add customization.yaml
+          git commit -m "chore: update customization ID after recreate"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

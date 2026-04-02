@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+# Builds an OCI artifact containing the ZScaler CA certificate.
+# Push this artifact to your registry before creating the DHI customization:
+#   docker buildx build --platform linux/amd64,linux/arm64 \
+#     -t demonstrationorg/zscaler-cert:latest --push -f Dockerfile.certs .
+
+FROM demonstrationorg/dhi-bash:5-alpine3.23-dev AS certs
+
+RUN apk add --no-cache ca-certificates
+
+RUN mkdir -p /usr/local/share/ca-certificates/zscaler
+COPY certs/zscaler.crt /usr/local/share/ca-certificates/zscaler/zscaler.crt
+RUN update-ca-certificates
+
+# Final scratch image — OCI artifact contains only the updated CA bundle
+FROM scratch
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
