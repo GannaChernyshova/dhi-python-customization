@@ -17,7 +17,7 @@ id: cz_192zwowno18lq
 source: dhi/python
 tag_definition_id: python/alpine-3.23/3.14
 
-destination: docker.io/demonstrationorg/dhi-python
+destination: docker.io/demonstrationorg/dhi-python-ann
 
 platforms:
   - linux/amd64
@@ -28,7 +28,7 @@ contents:
   packages:
     - curl
   artifacts:
-    - name: demonstrationorg/dhi-busybox:1-alpine3.23
+    - name: demonstrationorg/dhi-busybox-ann:1-alpine3.23
       includes:
         - bin
     - name: demonstrationorg/zscaler-cert:latest
