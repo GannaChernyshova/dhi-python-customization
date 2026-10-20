@@ -31,6 +31,12 @@ The resulting image is published to `docker.io/demonstrationorg/dhi-python`.
 - Access to your Docker Hub organization
 - GitHub repository variable `DHI_ORG` set to your Docker Hub org name
 
+Before changing the customization, confirm that the CLI can access your Docker Hub organization:
+
+```bash
+dhictl customization list --org "$DHI_ORG"
+```
+
 ---
 
 ## Step 1 — Build and push the Zscaler cert artifact
